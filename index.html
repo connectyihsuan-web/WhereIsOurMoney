@@ -26,7 +26,7 @@
       #app-root * { box-sizing: border-box; }
       #app-root .wrap { max-width: 640px; margin: 0 auto; }
 
-      #app-root .masthead { text-align: center; margin-bottom: 28px; }
+      #app-root .masthead { text-align: center; margin-bottom: 24px; }
       #app-root .masthead .icon-badge {
         display: inline-block;
         background: var(--rose-soft);
@@ -95,6 +95,39 @@
         font-family: 'Instrument Serif', serif;
         font-size: 20px;
         color: var(--rose);
+      }
+
+      /* Month Filter Bar */
+      #app-root .month-filter-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        font-family: 'Inter', sans-serif;
+      }
+      #app-root .month-btn {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(61,49,64,0.02);
+      }
+      #app-root .month-btn:hover {
+        border-color: var(--rose);
+        color: var(--rose);
+      }
+      #app-root .month-btn.active {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--bg);
+        font-weight: 600;
       }
 
       /* Receipt-tape balance card */
@@ -257,7 +290,25 @@
       #app-root .submit-btn:active { transform: scale(0.99); }
       #app-root .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-      /* Category summary */
+      /* Chart container */
+      #app-root .chart-card {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+        box-shadow: 0 4px 20px rgba(61,49,64,0.04), 0 1px 0 var(--line);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #app-root .chart-container {
+        position: relative;
+        width: 240px;
+        height: 240px;
+        margin: 10px 0;
+      }
+
+      /* Section title */
       #app-root .section-title {
         font-family: 'Inter', sans-serif;
         font-size: 12px;
@@ -267,22 +318,6 @@
         margin: 28px 0 10px 2px;
         font-weight: 600;
       }
-      #app-root .cat-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-family: 'Inter', sans-serif;
-        font-size: 13px;
-        margin-bottom: 10px;
-        background: var(--surface);
-        padding: 10px 14px;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(61,49,64,0.03);
-      }
-      #app-root .cat-name { width: 84px; flex-shrink: 0; color: var(--ink); font-weight: 500; }
-      #app-root .cat-bar-track { flex: 1; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
-      #app-root .cat-bar-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #dfb56c); border-radius: 5px; transition: width 0.4s ease; box-shadow: inset 0 1px 2px rgba(255,255,255,0.4); }
-      #app-root .cat-amt { width: 76px; text-align: right; font-family: 'IBM Plex Mono', monospace; flex-shrink: 0; font-weight: 500; }
 
       /* Ledger list */
       #app-root .ledger-list { display: flex; flex-direction: column; gap: 10px; }
@@ -343,6 +378,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <!-- 引入 Chart.js 圖表庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Source+Serif+4:wght@400;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 </head>
@@ -351,18 +388,18 @@
 <div id="app-root"></div>
 
 <script type="text/babel" data-presets="react">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKNzjM2fRBud4UHI2RtQFpjt8eCx1fmqfPSOdX88BOwszCfv0RL1fMXasWkcClpqNp/exec';
 
 const CATEGORIES = [
-  { id: 'food', label: '餐飲', emoji: '🍜' },
-  { id: 'fun', label: '娛樂', emoji: '🎬' },
-  { id: 'transport', label: '交通', emoji: '🚗' },
-  { id: 'life', label: '生活', emoji: '🛍️' },
-  { id: 'travel', label: '旅行', emoji: '✈️' },
-  { id: 'spotify', label: 'Spotify', emoji: '🎵' },
-  { id: 'other', label: '其他', emoji: '🧾' },
+  { id: 'food', label: '餐飲', emoji: '🍜', color: '#C1607A' },
+  { id: 'fun', label: '娛樂', emoji: '🎬', color: '#C99A4A' },
+  { id: 'transport', label: '交通', emoji: '🚗', color: '#6F9481' },
+  { id: 'life', label: '生活', emoji: '🛍️', color: '#886F94' },
+  { id: 'travel', label: '旅行', emoji: '✈️', color: '#5B82A8' },
+  { id: 'spotify', label: 'Spotify', emoji: '🎵', color: '#529E75' },
+  { id: 'other', label: '其他', emoji: '🧾', color: '#948E7E' },
 ];
 
 const NAMES_KEY = 'couple-ledger:names';
@@ -387,12 +424,17 @@ function App() {
     return saved ? JSON.parse(saved) : { a: '苡瑄', b: '佳勳' };
   });
 
+  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' 或 'YYYY-MM'
+
   const [amount, setAmount] = useState('');
   const [splitType, setSplitType] = useState('half'); // 'half' (平分), 'full' (不平分/全額)
   const [payer, setPayer] = useState('a');
   const [category, setCategory] = useState('food');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(todayStr());
+
+  const chartRef = useRef(null);
+  const chartInstanceRef = useRef(null);
 
   const fetchEntries = async () => {
     try {
@@ -423,6 +465,69 @@ function App() {
   useEffect(() => {
     localStorage.setItem(NAMES_KEY, JSON.stringify(names));
   }, [names]);
+
+  // 取得所有出現過的月份列表（降冪排列）
+  const availableMonths = Array.from(new Set(entries.map(e => e.date ? e.date.slice(0, 7) : ''))).filter(Boolean).sort().reverse();
+
+  // 根據選擇的月份篩選紀錄
+  const filteredEntries = entries.filter(e => {
+    if (selectedMonth === 'all') return true;
+    return e.date && e.date.startsWith(selectedMonth);
+  });
+
+  // 計算分類統計數據（基於篩選後的紀錄）
+  const catTotals = CATEGORIES.map(c => ({
+    ...c,
+    total: filteredEntries.filter(e => e.category === c.id).reduce((s, e) => s + e.amount, 0),
+  })).filter(c => c.total > 0);
+
+  // 繪製圓餅圖
+  useEffect(() => {
+    if (!chartRef.current) return;
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+    }
+
+    if (catTotals.length === 0) return;
+
+    const ctx = chartRef.current.getContext('2d');
+    chartInstanceRef.current = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: catTotals.map(c => c.emoji + ' ' + c.label),
+        datasets: [{
+          data: catTotals.map(c => c.total),
+          backgroundColor: catTotals.map(c => c.color),
+          borderWidth: 2,
+          borderColor: '#FFFFFF'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 12,
+              font: {
+                family: 'Inter, sans-serif',
+                size: 12
+              },
+              color: '#3D3140'
+            }
+          }
+        },
+        cutout: '65%'
+      }
+    });
+
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+      }
+    };
+  }, [filteredEntries]);
 
   const handleAdd = async () => {
     const amt = parseFloat(amount);
@@ -481,7 +586,7 @@ function App() {
   let totalB = 0;
   let splitDiff = 0;
 
-  entries.forEach(e => {
+  filteredEntries.forEach(e => {
     if (e.payer === 'a') totalA += e.amount;
     else totalB += e.amount;
 
@@ -497,13 +602,7 @@ function App() {
   const total = totalA + totalB;
   const half = Math.abs(splitDiff);
 
-  const catTotals = CATEGORIES.map(c => ({
-    ...c,
-    total: entries.filter(e => e.category === c.id).reduce((s, e) => s + e.amount, 0),
-  })).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
-  const maxCat = Math.max(1, ...catTotals.map(c => c.total));
-
-  const sortedEntries = [...entries].sort((a, b) => b.createdAt - a.createdAt);
+  const sortedEntries = [...filteredEntries].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div className="wrap">
@@ -522,11 +621,32 @@ function App() {
         </div>
       </div>
 
+      {/* 月份篩選列 */}
+      {availableMonths.length > 0 && (
+        <div className="month-filter-bar">
+          <button
+            className={"month-btn " + (selectedMonth === 'all' ? 'active' : '')}
+            onClick={() => setSelectedMonth('all')}
+          >
+            全部歷史
+          </button>
+          {availableMonths.map(m => (
+            <button
+              key={m}
+              className={"month-btn " + (selectedMonth === m ? 'active' : '')}
+              onClick={() => setSelectedMonth(m)}
+            >
+              {m.replace('-', '年')}月
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="receipt">
-        <div className="receipt-label">目前結算 {loading ? '（同步中...）' : ''}</div>
+        <div className="receipt-label">{selectedMonth === 'all' ? '目前總結算' : `${selectedMonth.replace('-', '年')}月結算`} {loading ? '（同步中...）' : ''}</div>
         <div className="receipt-balance">
           {half < 1 ? (
-            <div className="even">🌹 </div>
+            <div className="even">🌹 帳目剛好平衡</div>
           ) : (
             <React.Fragment>
               <div className={"amount " + (splitDiff > 0 ? "" : "sage")}>{fmt(half)}</div>
@@ -583,7 +703,7 @@ function App() {
                     checked={splitType === 'full'}
                     onChange={() => setSplitType('full')}
                   />
-                  不平分 
+                  不平分 (全額)
                 </label>
               </div>
             </div>
@@ -631,23 +751,19 @@ function App() {
 
       {catTotals.length > 0 && (
         <React.Fragment>
-          <div className="section-title">📊 分類統計</div>
-          {catTotals.map(c => (
-            <div className="cat-row" key={c.id}>
-              <div className="cat-name">{c.emoji} {c.label}</div>
-              <div className="cat-bar-track">
-                <div className="cat-bar-fill" style={{ width: (c.total / maxCat * 100) + '%' }} />
-              </div>
-              <div className="cat-amt">{fmt(c.total)}</div>
+          <div className="section-title">📊 支出比例圖表</div>
+          <div className="chart-card">
+            <div className="chart-container">
+              <canvas ref={chartRef}></canvas>
             </div>
-          ))}
+          </div>
         </React.Fragment>
       )}
 
-      <div className="section-title">📝 所有紀錄</div>
+      <div className="section-title">📝 紀錄列表 {selectedMonth !== 'all' ? `（${selectedMonth.replace('-', '年')}月）` : ''}</div>
       <div className="ledger-list">
         {sortedEntries.length === 0 && !loading && (
-          <div className="empty">✍️ </div>
+          <div className="empty">✍️ 這個月份還沒有紀錄</div>
         )}
         {sortedEntries.map(e => {
           const cat = CATEGORIES.find(c => c.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
