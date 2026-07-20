@@ -607,7 +607,6 @@ function App() {
   return (
     <div className="wrap">
       <div className="masthead">
-        <div className="icon-badge">👥</div>
         <div className="eyebrow">Shared Ledger</div>
         <h1>Where Is OUR Money</h1>
         <div className="names-edit">
@@ -646,7 +645,7 @@ function App() {
         <div className="receipt-label">{selectedMonth === 'all' ? '目前總結算' : `${selectedMonth.replace('-', '年')}月結算`} {loading ? '（同步中...）' : ''}</div>
         <div className="receipt-balance">
           {half < 1 ? (
-            <div className="even">🌹 帳目剛好平衡</div>
+            <div className="even">🌹 </div>
           ) : (
             <React.Fragment>
               <div className={"amount " + (splitDiff > 0 ? "" : "sage")}>{fmt(half)}</div>
@@ -763,7 +762,7 @@ function App() {
       <div className="section-title">📝 紀錄列表 {selectedMonth !== 'all' ? `（${selectedMonth.replace('-', '年')}月）` : ''}</div>
       <div className="ledger-list">
         {sortedEntries.length === 0 && !loading && (
-          <div className="empty">✍️ 這個月份還沒有紀錄</div>
+          <div className="empty">✍️ </div>
         )}
         {sortedEntries.map(e => {
           const cat = CATEGORIES.find(c => c.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
