@@ -43,7 +43,7 @@
         letter-spacing: 0.01em;
       }
       #app-root .masthead .names-edit {
-        margin-top: 10px;
+        margin-top: 14px;
         display: flex;
         justify-content: center;
         gap: 8px;
@@ -51,19 +51,33 @@
         font-family: 'Inter', sans-serif;
         font-size: 13px;
         color: var(--ink-soft);
+        max-width: 360px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      #app-root .names-edit .name-field {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 4px 8px;
+      }
+      #app-root .names-edit .name-field:focus-within {
+        border-color: var(--rose);
       }
       #app-root .names-edit input {
         font-family: 'Inter', sans-serif;
         border: none;
-        border-bottom: 1px dashed var(--line);
         background: transparent;
         text-align: center;
-        width: 72px;
-        padding: 2px 4px;
+        width: 100%;
+        padding: 2px;
         color: var(--ink);
         font-size: 13px;
       }
-      #app-root .names-edit input:focus { outline: none; border-color: var(--rose); }
+      #app-root .names-edit input:focus { outline: none; }
 
       /* Receipt-tape balance card */
       #app-root .receipt {
@@ -304,6 +318,8 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect } = React;
 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzW5kJL0a11t40TmW0o4SdukaQzJWL_Ov2pVfpoqZxdUKMEYU0lkK8znaAN4BNgiNVI/exec';
+
 const CATEGORIES = [
   { id: 'food', label: '餐飲', emoji: '🍜' },
   { id: 'fun', label: '娛樂', emoji: '🎬' },
@@ -314,7 +330,6 @@ const CATEGORIES = [
   { id: 'other', label: '其他', emoji: '🧾' },
 ];
 
-const ENTRIES_KEY = 'couple-ledger:entries';
 const NAMES_KEY = 'couple-ledger:names';
 
 function uid() {
@@ -330,11 +345,8 @@ function todayStr() {
 }
 
 function App() {
-  const [entries, setEntries] = useState(() => {
-    const saved = localStorage.getItem(ENTRIES_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
-  
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [names, setNames] = useState(() => {
     const saved = localStorage.getItem(NAMES_KEY);
     return saved ? JSON.parse(saved) : { a: '苡瑄', b: '佳勳' };
@@ -347,35 +359,83 @@ function App() {
   const [note, setNote] = useState('');
   const [date, setDate] = useState(todayStr());
 
+  const fetchEntries = async () => {
+    try {
+      const res = await fetch(SCRIPT_URL);
+      const data = await res.json();
+      const formatted = data.map(item => ({
+        id: String(item.id),
+        amount: Number(item.amount),
+        needSplit: String(item.need_split) === 'true',
+        payer: String(item.payer),
+        category: String(item.category),
+        note: String(item.note || ''),
+        date: String(item.date),
+        createdAt: Number(item.created_at)
+      }));
+      setEntries(formatted);
+    } catch (e) {
+      console.error('讀取失敗', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries));
-  }, [entries]);
+    fetchEntries();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(NAMES_KEY, JSON.stringify(names));
   }, [names]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return;
-    const entry = {
+    const newEntry = {
       id: uid(),
       amount: amt,
-      needSplit,
+      need_split: needSplit,
       payer,
       category,
       note: note.trim(),
       date,
-      createdAt: Date.now(),
+      created_at: Date.now(),
     };
-    setEntries([entry, ...entries]);
-    setAmount('');
-    setNeedSplit(true);
-    setNote('');
+
+    setLoading(true);
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(newEntry)
+      });
+      setAmount('');
+      setNeedSplit(true);
+      setNote('');
+      setTimeout(fetchEntries, 1500);
+    } catch (e) {
+      alert('新增失敗');
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id) => {
-    setEntries(entries.filter(e => e.id !== id));
+  const handleDelete = async (id) => {
+    if (!confirm('確定要刪除這筆紀錄嗎？')) return;
+    setLoading(true);
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'delete', id: id })
+      });
+      setTimeout(fetchEntries, 1500);
+    } catch (e) {
+      alert('刪除失敗');
+      setLoading(false);
+    }
   };
 
   const handleNameChange = (who, val) => {
@@ -414,14 +474,18 @@ function App() {
         <h1>Where Is OUR Money</h1>
         <div className="names-edit">
           <span>雙方：</span>
-          <input type="text" value={names.a} onChange={e => handleNameChange('a', e.target.value)} />
+          <div className="name-field">
+            <input type="text" value={names.a} onChange={e => handleNameChange('a', e.target.value)} />
+          </div>
           <span>&amp;</span>
-          <input type="text" value={names.b} onChange={e => handleNameChange('b', e.target.value)} />
+          <div className="name-field">
+            <input type="text" value={names.b} onChange={e => handleNameChange('b', e.target.value)} />
+          </div>
         </div>
       </div>
 
       <div className="receipt">
-        <div className="receipt-label">目前結算</div>
+        <div className="receipt-label">目前結算 {loading ? '（同步中...）' : ''}</div>
         <div className="receipt-balance">
           {half < 1 ? (
             <div className="even">🌹</div>
@@ -510,8 +574,8 @@ function App() {
             <input type="text" placeholder="例如：晚餐、全聯" value={note} onChange={e => setNote(e.target.value)} />
           </div>
         </div>
-        <button className="submit-btn" onClick={handleAdd} disabled={!amount}>
-          ＋ 加入紀錄
+        <button className="submit-btn" onClick={handleAdd} disabled={!amount || loading}>
+          {loading ? '處理中...' : '＋ 加入紀錄'}
         </button>
       </div>
 
@@ -532,8 +596,8 @@ function App() {
 
       <div className="section-title">所有紀錄</div>
       <div className="ledger-list">
-        {sortedEntries.length === 0 && (
-          <div className="empty">✍️</div>
+        {sortedEntries.length === 0 && !loading && (
+          <div className="empty">✍️ 目前還沒有紀錄</div>
         )}
         {sortedEntries.map(e => {
           const cat = CATEGORIES.find(c => c.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
@@ -555,7 +619,7 @@ function App() {
       </div>
 
       <div className="footnote">
-        資料會自動儲存於本機
+        資料已連動至 Google 試算表
       </div>
     </div>
   );
