@@ -183,20 +183,26 @@
         align-items: center;
         gap: 10px;
       }
-      #app-root .split-checkbox-label {
+      #app-root .split-options {
         display: flex;
+        gap: 12px;
         align-items: center;
-        gap: 5px;
         font-size: 13px;
         color: var(--ink-soft);
         cursor: pointer;
-        white-space: nowrap;
         user-select: none;
       }
-      #app-root .split-checkbox-label input {
+      #app-root .split-options label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
         cursor: pointer;
-        width: 16px;
-        height: 16px;
+        margin-bottom: 0 !important;
+      }
+      #app-root .split-options input {
+        cursor: pointer;
+        width: 15px;
+        height: 15px;
         accent-color: var(--rose);
       }
 
@@ -353,7 +359,7 @@ function App() {
   });
 
   const [amount, setAmount] = useState('');
-  const [needSplit, setNeedSplit] = useState(true);
+  const [splitType, setSplitType] = useState('half'); // 'half' (平分), 'none' (不平分), 'offset' (代墊抵銷)
   const [payer, setPayer] = useState('a');
   const [category, setCategory] = useState('food');
   const [note, setNote] = useState('');
@@ -366,7 +372,7 @@ function App() {
       const formatted = data.map(item => ({
         id: String(item.id),
         amount: Number(item.amount),
-        needSplit: String(item.need_split) === 'true',
+        splitType: String(item.split_type || (item.need_split === 'false' ? 'none' : 'half')),
         payer: String(item.payer),
         category: String(item.category),
         note: String(item.note || ''),
@@ -395,7 +401,7 @@ function App() {
     const newEntry = {
       id: uid(),
       amount: amt,
-      need_split: needSplit,
+      split_type: splitType,
       payer,
       category,
       note: note.trim(),
@@ -412,7 +418,7 @@ function App() {
         body: JSON.stringify(newEntry)
       });
       setAmount('');
-      setNeedSplit(true);
+      setSplitType('half');
       setNote('');
       setTimeout(fetchEntries, 1500);
     } catch (e) {
@@ -450,10 +456,16 @@ function App() {
     if (e.payer === 'a') totalA += e.amount;
     else totalB += e.amount;
 
-    if (e.needSplit !== false) {
+    if (e.splitType === 'half' || !e.splitType) {
+      // 一般平分
       if (e.payer === 'a') splitDiff += e.amount / 2;
       else splitDiff -= e.amount / 2;
+    } else if (e.splitType === 'offset') {
+      // 代墊抵銷：這筆全額算作對方欠你的款項（或幫對方付的債務抵銷）
+      if (e.payer === 'a') splitDiff += e.amount;
+      else splitDiff -= e.amount;
     }
+    // 'none' 不平分則不影響 diff
   });
 
   const total = totalA + totalB;
@@ -528,14 +540,35 @@ function App() {
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
               />
-              <label className="split-checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={needSplit}
-                  onChange={e => setNeedSplit(e.target.checked)}
-                />
-                需要平分 (/2)
-              </label>
+              <div className="split-options">
+                <label>
+                  <input
+                    type="radio"
+                    name="splitType"
+                    checked={splitType === 'half'}
+                    onChange={() => setSplitType('half')}
+                  />
+                  平分 (/2)
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="splitType"
+                    checked={splitType === 'offset'}
+                    onChange={() => setSplitType('offset')}
+                  />
+                  代墊抵銷
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="splitType"
+                    checked={splitType === 'none'}
+                    onChange={() => setSplitType('none')}
+                  />
+                  不平分
+                </label>
+              </div>
             </div>
           </div>
           <div className="field">
@@ -571,7 +604,7 @@ function App() {
         <div className="add-row">
           <div className="field">
             <label>備註（選填）</label>
-            <input type="text" placeholder="例如：晚餐、全聯" value={note} onChange={e => setNote(e.target.value)} />
+            <input type="text" placeholder="例如：幫忙買東西抵債" value={note} onChange={e => setNote(e.target.value)} />
           </div>
         </div>
         <button className="submit-btn" onClick={handleAdd} disabled={!amount || loading}>
@@ -602,13 +635,17 @@ function App() {
         {sortedEntries.map(e => {
           const cat = CATEGORIES.find(c => c.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
           const payerName = e.payer === 'a' ? names.a : names.b;
+          let splitText = '';
+          if (e.splitType === 'offset') splitText = '（代墊抵銷）';
+          else if (e.splitType === 'none') splitText = '（不平分）';
+
           return (
             <div className={"entry payer-" + e.payer} key={e.id}>
               <div className="tag">{cat.emoji} {cat.label}</div>
               <div className="main">
                 <div className="note">{e.note || payerName + ' 的花費'}</div>
                 <div className="meta">
-                  {e.date} · {payerName}付款 {e.needSplit === false ? '（不平分）' : ''}
+                  {e.date} · {payerName}付款 {splitText}
                 </div>
               </div>
               <div className="amt">{fmt(e.amount)}</div>
