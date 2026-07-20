@@ -185,7 +185,7 @@
       }
       #app-root .split-options {
         display: flex;
-        gap: 12px;
+        gap: 14px;
         align-items: center;
         font-size: 13px;
         color: var(--ink-soft);
@@ -195,7 +195,7 @@
       #app-root .split-options label {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 5px;
         cursor: pointer;
         margin-bottom: 0 !important;
       }
@@ -359,7 +359,7 @@ function App() {
   });
 
   const [amount, setAmount] = useState('');
-  const [splitType, setSplitType] = useState('half'); // 'half' (平分), 'none' (不平分), 'offset' (代墊抵銷)
+  const [splitType, setSplitType] = useState('half'); // 'half' (平分), 'full' (不平分/全額)
   const [payer, setPayer] = useState('a');
   const [category, setCategory] = useState('food');
   const [note, setNote] = useState('');
@@ -372,7 +372,7 @@ function App() {
       const formatted = data.map(item => ({
         id: String(item.id),
         amount: Number(item.amount),
-        splitType: String(item.split_type || (item.need_split === 'false' ? 'none' : 'half')),
+        splitType: String(item.split_type || (item.need_split === 'false' ? 'full' : 'half')),
         payer: String(item.payer),
         category: String(item.category),
         note: String(item.note || ''),
@@ -457,15 +457,14 @@ function App() {
     else totalB += e.amount;
 
     if (e.splitType === 'half' || !e.splitType) {
-      // 一般平分
+      // 平分：除以 2
       if (e.payer === 'a') splitDiff += e.amount / 2;
       else splitDiff -= e.amount / 2;
-    } else if (e.splitType === 'offset') {
-      // 代墊抵銷：這筆全額算作對方欠你的款項（或幫對方付的債務抵銷）
+    } else if (e.splitType === 'full') {
+      // 不平分：全額計入對方欠款
       if (e.payer === 'a') splitDiff += e.amount;
       else splitDiff -= e.amount;
     }
-    // 'none' 不平分則不影響 diff
   });
 
   const total = totalA + totalB;
@@ -554,19 +553,10 @@ function App() {
                   <input
                     type="radio"
                     name="splitType"
-                    checked={splitType === 'offset'}
-                    onChange={() => setSplitType('offset')}
+                    checked={splitType === 'full'}
+                    onChange={() => setSplitType('full')}
                   />
-                  代墊抵銷
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="splitType"
-                    checked={splitType === 'none'}
-                    onChange={() => setSplitType('none')}
-                  />
-                  不平分
+                  不平分 (全額)
                 </label>
               </div>
             </div>
@@ -604,7 +594,7 @@ function App() {
         <div className="add-row">
           <div className="field">
             <label>備註（選填）</label>
-            <input type="text" placeholder="例如：幫忙買東西抵債" value={note} onChange={e => setNote(e.target.value)} />
+            <input type="text" placeholder="例如：晚餐、幫買東西" value={note} onChange={e => setNote(e.target.value)} />
           </div>
         </div>
         <button className="submit-btn" onClick={handleAdd} disabled={!amount || loading}>
@@ -636,8 +626,7 @@ function App() {
           const cat = CATEGORIES.find(c => c.id === e.category) || CATEGORIES[CATEGORIES.length - 1];
           const payerName = e.payer === 'a' ? names.a : names.b;
           let splitText = '';
-          if (e.splitType === 'offset') splitText = '（代墊抵銷）';
-          else if (e.splitType === 'none') splitText = '（不平分）';
+          if (e.splitType === 'full') splitText = '（不平分）';
 
           return (
             <div className={"entry payer-" + e.payer} key={e.id}>
